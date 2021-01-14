@@ -39,13 +39,8 @@ impl Mwc256XXA64 {
     #[inline]
     fn from_state_incr(x1: u64, x2: u64, x3: u64, c: u64) -> Self {
         let mut pcg = Mwc256XXA64 { x1, x2, x3, c };
-        //Advance 6 steps to fully mix the keys.
-        pcg.step();
-        pcg.step();
-        pcg.step();
-        pcg.step();
-        pcg.step();
-        pcg.step();
+        //Advance 4 steps to fully mix the keys.
+        pcg.gen4();
         pcg
     }
 
