@@ -1,35 +1,30 @@
 pub trait Gen {
-    fn reset(&mut self, config: bool);
+    fn reset(&mut self);
 
     fn next(&mut self) -> u8;
 }
 
-pub struct Lcg {
+pub struct Pcg16_8 {
     pub(crate) x: u16,
     pub inc: u16,
 }
 
 const M16: u16 = 25385;
-const INC1: u16 = 771;
-const INC2: u16 = 55555;
+const INC1: u16 = 771; //Alt: 5555
 
-impl Default for Lcg {
+impl Default for Pcg16_8 {
     fn default() -> Self {
         Lcg {
-            x: 12345,
+            x: 1,
             inc: INC1,
         }
     }
 }
 
-impl Gen for Lcg {
-    fn reset(&mut self, config: bool) {
+impl Gen for Pcg16_8 {
+    fn reset(&mut self) {
         self.x = 1;
-        if config {
-            self.inc = INC1;
-        } else {
-            self.inc = INC2;
-        }
+        self.inc = INC1;
     }
 
     fn next(&mut self) -> u8 {
@@ -42,12 +37,12 @@ impl Gen for Lcg {
 }
 
 
-pub struct Xoshiro {
-    s: [u8; 4],
-    scramble: bool,
+pub struct Xoshiro32 {
+    pub(crate) s: [u8; 4],
+    pub(crate) scramble: bool,
 }
 
-impl Default for Xoshiro {
+impl Default for Xoshiro32 {
     fn default() -> Self {
         Xoshiro {
             s: [255, 100, 200, 5],
@@ -56,16 +51,16 @@ impl Default for Xoshiro {
     }
 }
 
-impl Gen for Xoshiro {
-    fn reset(&mut self, _config: bool) {
+impl Gen for Xoshiro32 {
+    fn reset(&mut self) {
         self.s = [1, 2, 3, 5];
     }
 
     fn next(&mut self) -> u8 {
         let result = if self.scramble {
-            self.s[0].wrapping_add(self.s[3]).rotate_left(4).wrapping_add(self.s[0])
+            self.s[0].wrapping_add(self.s[3]).rotate_left(7).wrapping_add(self.s[0])
         } else {
-            self.s[0]
+            self.s[2]
         };
         let t = self.s[1] << 3;
         self.s[2] ^= self.s[0];
@@ -73,61 +68,58 @@ impl Gen for Xoshiro {
         self.s[1] ^= self.s[2];
         self.s[0] ^= self.s[3];
         self.s[2] ^= t;
-        self.s[3] = self.s[3].rotate_left(5);
+        self.s[3] = self.s[3].rotate_left(7);
         return result;
     }
 }
 
+// Possible constants:
+// lag-1: 90
+// lag-1: 99
+// lag-1: 174
+// lag-1: 204
+// lag-1: 210
+// lag-2: 45
+// lag-3: 123
+// lag-3: 228
+// There are no full period constants for lag-4. 227 can be used as a stand-in.
+
 // This is the default multiplier used by MWC.
-//const MULTIPLIER: u8 = 210; //lag-1
-//const MULTIPLIER: u8 = 45; //lag-2
-pub(crate) const MULTIPLIER: u8 = 123; //lag-3  123, 228
-//const MULTIPLIER: u8 = 227; //Not full period, but standin for 4.
+pub(crate) const MULTIPLIER: u8 = 228;
 
 #[derive(PartialEq, Eq, Hash, Clone)]
-pub struct Gen8 {
+pub struct Mcg32_8 {
     pub(crate) x1: u8,
     pub(crate) x2: u8,
     pub(crate) x3: u8,
-    // pub(crate) x4: u8,
     pub(crate) c: u8,
-    pub(crate) mul: u8,
 }
 
-impl Default for Gen8 {
+impl Default for Mcg32_8 {
     fn default() -> Self {
         Gen8 {
-            x1: 169,
-            x2: 163,
-            x3: 213,
-            // x4: 217,
-            c: 31,
-            mul: MULTIPLIER,
+            x1: 123,
+            x2: 34,
+            x3: 56,
+            c: 78,
         }
     }
 }
 
-impl Gen for Gen8 {
-    fn reset(&mut self, config: bool) {
-        self.x1 = 120;
+impl Gen for Mcg32_8 {
+    fn reset(&mut self) {
+        self.x1 = 123;
         self.x2 = 34;
         self.x3 = 56;
-        // self.x4 = 99;
         self.c = 78;
-        if config {
-            self.mul = 123;
-        } else {
-            self.mul = 228;
-        }
     }
 
     fn next(&mut self) -> u8 {
         // prepare the MCG for the next round
-        let t = (self.x3 as u16).wrapping_mul(self.mul as u16);
+        let t = (self.x3 as u16).wrapping_mul(MULTIPLIER as u16);
         let (low, hi) = (t as u8, (t >> 8) as u8);
         let result = (self.x3 ^ self.x2).wrapping_add(self.x1 ^ hi);
         let (x1, b) = low.overflowing_add(self.c);
-        // self.x4 = self.x3;
         self.x3 = self.x2;
         self.x2 = self.x1;
         self.x1 = x1;
