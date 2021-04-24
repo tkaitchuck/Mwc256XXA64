@@ -23,28 +23,34 @@ impl Default for PCG {
         }
     }
 }
-
-const MULTIPLIER: u16 = 26298; //lag 2 or 4.
+// Alternative constants
+// 19530 - lag-2 Really bad spectra
+// 65274 - lag-2 bad spectra
+// 52563 - lag-2 good spectra
+// 26298 - lag-2 or 4. decent spectra for 2
+// 62139 - lag-3 decent spectra
+// 57984 - lag-4 REALLY BAD spectra
+const MULTIPLIER: u16 = 39273; //Lag-3 good spectra
 
 pub struct Gen16 {
     pub(crate) x1: u16,
     pub(crate) x2: u16,
+    pub(crate) x3: u16,
     pub(crate) c: u16,
 }
 
-impl Iterator for Gen16 {
-    type Item = u16;
+impl Gen16 {
 
-    fn next(&mut self) -> Option<Self::Item> {
+    pub(crate) fn next(&mut self) -> u16 {
         // prepare the MCG for the next round
-        let (low, hi) = multiply(self.x2);
-        let result = (self.x2 ^ self.x1).wrapping_add(self.c ^ hi);
+        let (low, hi) = multiply(self.x3);
+        let result = (self.x3 ^ self.x2).wrapping_add(self.x1 ^ hi);
         let (x1, b) = low.overflowing_add(self.c);
-        //self.x3 = self.x2;
+        self.x3 = self.x2;
         self.x2 = self.x1;
         self.x1 = x1;
         self.c = hi.wrapping_add(b as u16);
-        Some(result)
+        result
     }
 }
 
