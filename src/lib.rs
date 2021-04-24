@@ -5,7 +5,7 @@
 // except according to those terms.
 
 use core::fmt;
-
+pub mod gen32;
 use rand_core::{Error, le, RngCore, SeedableRng};
 
 #[cfg(feature = "serde1")]
