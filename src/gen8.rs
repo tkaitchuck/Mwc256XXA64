@@ -14,7 +14,7 @@ const INC1: u16 = 771; //Alt: 5555
 
 impl Default for Pcg16_8 {
     fn default() -> Self {
-        Lcg {
+        Pcg16_8 {
             x: 1,
             inc: INC1,
         }
@@ -44,7 +44,7 @@ pub struct Xoshiro32 {
 
 impl Default for Xoshiro32 {
     fn default() -> Self {
-        Xoshiro {
+        Xoshiro32 {
             s: [255, 100, 200, 5],
             scramble: true,
         }
@@ -97,7 +97,7 @@ pub struct Mcg32_8 {
 
 impl Default for Mcg32_8 {
     fn default() -> Self {
-        Gen8 {
+        Mcg32_8 {
             x1: 123,
             x2: 34,
             x3: 56,

@@ -6,6 +6,8 @@
 
 use core::fmt;
 pub mod gen32;
+mod aesprng;
+pub use crate::aesprng::AesPrng;
 use rand_core::{Error, le, RngCore, SeedableRng};
 
 #[cfg(feature = "serde1")]
