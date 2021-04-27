@@ -27,8 +27,8 @@ impl Gen32 {
     #[inline]
     fn step(&mut self) -> u32 {
         // prepare the MCG for the next round
-        let (low, hi) = multiply(self.x2);
-        let result = (self.x3 ^ self.x2).wrapping_add(self.x1 ^ hi);
+        let (low, hi) = multiply(self.x3);
+        let result = permute(self.x1, self.x2, self.x3, self.c, low, hi);
         let (x1, b) = low.overflowing_add(self.c);
         self.x3 = self.x2;
         self.x2 = self.x1;
@@ -38,16 +38,43 @@ impl Gen32 {
     }
 
     #[inline]
-    fn gen4(&mut self) -> [u32; 4] {
-        let mut result = [0; 4];
-        result[0] = self.step();
-        result[1] = self.step();
-        result[2] = self.step();
-        result[3] = self.step();
-        result
+    fn gen6(&mut self) -> [u32; 6] {
+        //This is faster than calling `next_u32` 6 times because it avoids the intermediate assignments to the member variables.
+        //For some reason the compiler doesn't figure this out automatically.
+        let mut result = [0; 6];
+        let (low, hi) = multiply(self.x3);
+        result[0] = permute(self.x1, self.x2, self.x3, self.c, low, hi);
+        let (r1, b) = low.overflowing_add(self.c);
+        let c = hi.wrapping_add(b as u32);
+        let (low, hi) = multiply(self.x2);
+        result[1] = permute(r1, self.x1, self.x2, c, low, hi);
+        let (r2, b) = low.overflowing_add(c);
+        let c = hi.wrapping_add(b as u32);
+        let (low, hi) = multiply(self.x1);
+        result[2] = permute(r2, r1, self.x1, c, low, hi);
+        let (r3, b) = low.overflowing_add(c);
+        let c = hi.wrapping_add(b as u32);
+
+        let (low, hi) = multiply(r1);
+        result[3] = permute(r3, r2, r1, c, low, hi);
+        let (r1, b) = low.overflowing_add(c);
+        let c = hi.wrapping_add(b as u32);
+        let (low, hi) = multiply(r2);
+        result[4] = permute(r1, r3, r2, c, low, hi);
+        let (r2, b) = low.overflowing_add(c);
+        let c = hi.wrapping_add(b as u32);
+        let (low, hi) = multiply(r3);
+        result[5] = permute(r2, r1, r3, c, low, hi);
+        let (r3, b) = low.overflowing_add(c);
+        let c = hi.wrapping_add(b as u32);
+
+        self.c = c;
+        self.x1 = r3;
+        self.x2 = r2;
+        self.x3 = r1;
+        return result;
     }
 }
-
 
 impl RngCore for Gen32 {
     #[inline]
@@ -63,7 +90,17 @@ impl RngCore for Gen32 {
 
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        fill_bytes_impl(self, dest)
+        let mut dest_chunks = dest.chunks_exact_mut(6 * 4);
+        for mut dest_chunk in &mut dest_chunks {
+            for &num in self.gen6().iter() {
+                let (l, r) = dest_chunk.split_at_mut(4);
+                l.copy_from_slice(&num.to_le_bytes());
+                dest_chunk = r;
+            }
+        }
+        for mut dest_chunk in dest_chunks.into_remainder().chunks_mut(4) {
+            dest_chunk.copy_from_slice(&self.step().to_le_bytes()[..dest_chunk.len()]);
+        }
     }
 
     #[inline(always)]
@@ -74,24 +111,12 @@ impl RngCore for Gen32 {
 }
 
 #[inline(always)]
-fn fill_bytes_impl(rng: &mut Gen32, dest: &mut [u8]) {
-    let mut left = dest;
-    while left.len() > 0 {
-        for chunk in rng.gen4().iter() {
-            if left.len() >= 4 {
-                let (l, r) = left.split_at_mut(4);
-                l.copy_from_slice(&chunk.to_le_bytes());
-                left = r;
-            } else {
-                left.copy_from_slice(&chunk.to_le_bytes()[..left.len()]);
-                return;
-            }
-        }
-    }
-}
-
-#[inline(always)]
 fn multiply(val: u32) -> (u32, u32) {
     let t = (val as u64).wrapping_mul(MULTIPLIER as u64);
     return (t as u32, (t >> 32) as u32);
+}
+
+#[inline(always)]
+fn permute(x1: u32, x2: u32, x3: u32, _c: u32, _low: u32, hi: u32) -> u32 {
+    (x3 ^ x2).wrapping_add(x1 ^ hi)
 }
