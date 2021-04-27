@@ -165,3 +165,4 @@ impl RngCore for Mwc256XXA64 {
         Ok(())
     }
 }
+
