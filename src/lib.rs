@@ -42,20 +42,15 @@ impl Mwc256XXA64 {
     fn from_state_incr(x1: u64, x2: u64, x3: u64, c: u64) -> Self {
         let mut pcg = Mwc256XXA64 { x1, x2, x3, c };
         //Advance 6 steps to fully mix the keys.
-        pcg.step();
-        pcg.step();
-        pcg.step();
-        pcg.step();
-        pcg.step();
-        pcg.step();
+        pcg.gen6();
         pcg
     }
 
     #[inline]
-    fn gen4(&mut self) -> [u64; 4] {
-        //This is faster than calling `next_u64` 4 times because it avoids the intermediate assignments to the member variables.
+    fn gen6(&mut self) -> [u64; 6] {
+        //This is faster than calling `next_u64` 6 times because it avoids the intermediate assignments to the member variables.
         //For some reason the compiler doesn't figure this out automatically.
-        let mut result = [0; 4];
+        let mut result = [0; 6];
         let (low, hi) = multiply(self.x3);
         result[0] = permute(self.x1, self.x2, self.x3, self.c, low, hi);
         let (r1, b) = low.overflowing_add(self.c);
@@ -68,14 +63,24 @@ impl Mwc256XXA64 {
         result[2] = permute(r2, r1, self.x1, c, low, hi);
         let (r3, b) = low.overflowing_add(c);
         let c = hi.wrapping_add(b as u64);
+
         let (low, hi) = multiply(r1);
         result[3] = permute(r3, r2, r1, c, low, hi);
-        let (r4, b) = low.overflowing_add(c);
+        let (r1, b) = low.overflowing_add(c);
         let c = hi.wrapping_add(b as u64);
+        let (low, hi) = multiply(r2);
+        result[4] = permute(r1, r3, r2, c, low, hi);
+        let (r2, b) = low.overflowing_add(c);
+        let c = hi.wrapping_add(b as u64);
+        let (low, hi) = multiply(r3);
+        result[5] = permute(r2, r1, r3, c, low, hi);
+        let (r3, b) = low.overflowing_add(c);
+        let c = hi.wrapping_add(b as u64);
+
         self.c = c;
-        self.x1 = r4;
-        self.x2 = r3;
-        self.x3 = r2;
+        self.x1 = r3;
+        self.x2 = r2;
+        self.x3 = r1;
         return result;
     }
 
@@ -141,29 +146,22 @@ impl RngCore for Mwc256XXA64 {
 
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        fill_bytes_impl(self, dest)
+        let mut dest_chunks = dest.chunks_exact_mut(6 * 8);
+        for mut dest_chunk in &mut dest_chunks {
+            for &num in self.gen6().iter() {
+                let (l, r) = dest_chunk.split_at_mut(8);
+                l.copy_from_slice(&num.to_le_bytes());
+                dest_chunk = r;
+            }
+        }
+        for mut dest_chunk in dest_chunks.into_remainder().chunks_mut(8) {
+            dest_chunk.copy_from_slice(&self.step().to_le_bytes()[..dest_chunk.len()]);
+        }
     }
 
     #[inline(always)]
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
         self.fill_bytes(dest);
         Ok(())
-    }
-}
-
-#[inline(always)]
-fn fill_bytes_impl(rng: &mut Mwc256XXA64, dest: &mut [u8]) {
-    let mut left = dest;
-    while left.len() > 0 {
-        for chunk in rng.gen4().iter() {
-            if left.len() >= 8 {
-                let (l, r) = left.split_at_mut(8);
-                l.copy_from_slice(&chunk.to_le_bytes());
-                left = r;
-            } else {
-                left.copy_from_slice(&chunk.to_le_bytes()[..left.len()]);
-                return;
-            }
-        }
     }
 }
