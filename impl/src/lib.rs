@@ -6,8 +6,6 @@
 
 use core::fmt;
 pub mod gen32;
-mod aesprng;
-pub use crate::aesprng::AesPrng;
 use rand_core::{Error, le, RngCore, SeedableRng};
 
 #[cfg(feature = "serde1")]
@@ -154,7 +152,7 @@ impl RngCore for Mwc256XXA64 {
                 dest_chunk = r;
             }
         }
-        for mut dest_chunk in dest_chunks.into_remainder().chunks_mut(8) {
+        for dest_chunk in dest_chunks.into_remainder().chunks_mut(8) {
             dest_chunk.copy_from_slice(&self.step().to_le_bytes()[..dest_chunk.len()]);
         }
     }

@@ -6,20 +6,20 @@ use rand_core::{RngCore, Error};
 
 const MULTIPLIER: u32 = 3487286589; //Suitable for lag-2,3,4 acceptably good spectra
 
-pub struct Gen32 {
+pub struct Mwc128XXA32 {
     pub(crate) x1: u32,
     pub(crate) x2: u32,
     pub(crate) x3: u32,
     pub(crate) c: u32,
 }
 
-impl Default for Gen32 {
+impl Default for Mwc128XXA32 {
     fn default() -> Self {
-        Gen32 { x1: 123, x2: 45, x3: 67, c: 89 }
+        Mwc128XXA32 { x1: 123, x2: 45, x3: 67, c: 89 }
     }
 }
 
-impl Gen32 {
+impl Mwc128XXA32 {
     pub fn next(&mut self) -> u32 {
         self.step()
     }
@@ -76,7 +76,7 @@ impl Gen32 {
     }
 }
 
-impl RngCore for Gen32 {
+impl RngCore for Mwc128XXA32 {
     #[inline]
     fn next_u32(&mut self) -> u32 {
         self.step() as u32
@@ -98,7 +98,7 @@ impl RngCore for Gen32 {
                 dest_chunk = r;
             }
         }
-        for mut dest_chunk in dest_chunks.into_remainder().chunks_mut(4) {
+        for dest_chunk in dest_chunks.into_remainder().chunks_mut(4) {
             dest_chunk.copy_from_slice(&self.step().to_le_bytes()[..dest_chunk.len()]);
         }
     }

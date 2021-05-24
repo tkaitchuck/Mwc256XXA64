@@ -1,5 +1,5 @@
 [package]
-name = "pcg-mwc"
+name = "pcg-mwc-test"
 version = "0.1.0"
 authors = ["Tom Kaitchuck <Tom.Kaitchuck@gmail.com>"]
 edition = "2018"
@@ -12,6 +12,7 @@ path = "test/bench.rs"
 harness = false
 
 [dependencies]
+pcg-mwc = { path = "../impl" }
 primal = "0.3.0"
 glass_pumpkin = "0.4.0"
 rand = "0.8"
