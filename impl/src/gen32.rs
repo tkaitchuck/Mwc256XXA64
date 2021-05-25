@@ -1,4 +1,7 @@
-use rand_core::{RngCore, Error};
+use rand_core::{RngCore, Error, SeedableRng, le};
+
+#[cfg(feature = "serde1")]
+use serde::{Deserialize, Serialize};
 
 // Deliberately poor constants for testing:
 // 2562598503 - Lag-2 or 3 Truly awful spectra
@@ -6,6 +9,12 @@ use rand_core::{RngCore, Error};
 
 const MULTIPLIER: u32 = 3487286589; //Suitable for lag-2,3,4 acceptably good spectra
 
+/// A PCG random number generator (MWC X A 128/32 variant).
+///
+/// Permuted Congruential Generator with 128-bit state, internal multiply
+/// with carry Generator, and 32-bit output via a xor and an add.
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 pub struct Mwc128XXA32 {
     pub(crate) x1: u32,
     pub(crate) x2: u32,
@@ -13,13 +22,22 @@ pub struct Mwc128XXA32 {
     pub(crate) c: u32,
 }
 
-impl Default for Mwc128XXA32 {
-    fn default() -> Self {
-        Mwc128XXA32 { x1: 123, x2: 45, x3: 67, c: 89 }
-    }
-}
-
 impl Mwc128XXA32 {
+    /// Construct an instance given two keys.
+    pub fn new(k1: u32, k2: u32) -> Self {
+        // X3 is 0xcafef00d 0xd15ea5e5 (default state from PCG paper because it cannot be 0.
+        // C must be initialized to a value > 1 and < MULTIPLIER
+        Mwc128XXA32::from_state_incr(k1, k2, 0xcafef00d, 0xd15ea5e5)
+    }
+
+    #[inline]
+    fn from_state_incr(x1: u32, x2: u32, x3: u32, c: u32) -> Self {
+        let mut pcg = Mwc128XXA32 { x1, x2, x3, c };
+        //Advance 6 steps to fully mix the keys.
+        pcg.gen6();
+        pcg
+    }
+
     pub fn next(&mut self) -> u32 {
         self.step()
     }
@@ -73,6 +91,23 @@ impl Mwc128XXA32 {
         self.x2 = r2;
         self.x3 = r1;
         return result;
+    }
+}
+
+
+/// We use a single 121-bit seed to initialise the state and select a stream.
+/// Of the 128 `seed` bits 7 are ignored.
+impl SeedableRng for Mwc128XXA32 {
+    type Seed = [u8; 16];
+
+    fn from_seed(seed: Self::Seed) -> Self {
+        let mut seed_u32 = [0u32; 4];
+        le::read_u32_into(&seed, &mut seed_u32);
+        // c must be < MULTIPLE and not all 1s or 0s
+        let c = (seed_u32[0] & 0x3fff_fff8) | 5;
+        // X3 must be non-zero and not all 1s, hence we discard 2 bits
+        let x3 = (seed_u32[3] << 2) | 1;
+        Mwc128XXA32::from_state_incr(seed_u32[1], seed_u32[2], x3, c)
     }
 }
 
