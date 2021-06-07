@@ -1,11 +1,11 @@
 use criterion::*;
-use pcg_mwc::{Mwc256XXA64, AesPrng, gen32};
+use pcg_mwc::{Mwc256XXA64, AesPrng, Mwc128XXA32};
 use rand_core::{RngCore, SeedableRng};
 use rand_pcg::{Pcg64Mcg, Pcg64};
 use rand_xoshiro::Xoshiro256PlusPlus;
 
 fn bench_mwc32_kb(c: &mut Criterion) {
-    let mut mwc = gen32::Gen32::default();
+    let mut mwc = Mwc128XXA32::default();
     let mut vec = vec![0; 1024];
     c.bench(
         "Mwc128XA32",

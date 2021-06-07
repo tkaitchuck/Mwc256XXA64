@@ -6,7 +6,7 @@ use std::io::{BufWriter, Write};
 use rand_core::RngCore;
 
 use pcg_mwc::Mwc256XXA64;
-use pcg_mwc::gen32;
+use pcg_mwc::Mwc128XXA32;
 
 mod gen8;
 mod gen16;
