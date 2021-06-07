@@ -1,10 +1,3 @@
-
-mod gen32;
-mod gen64;
-
-pub use gen32::Mwc128XXA32;
-pub use gen64::Mwc256XXA64;
-
 //! An implementation of a permeuted multiply with carry random number generator.
 //! Details about the design see: https://tom-kaitchuck.medium.com/designing-a-new-prng-1c4ffd27124d
 //!
@@ -48,3 +41,9 @@ pub use gen64::Mwc256XXA64;
 //! }
 //! ```
 //!
+mod gen32;
+mod gen64;
+
+pub use gen32::Mwc128XXA32;
+pub use gen64::Mwc256XXA64;
+
