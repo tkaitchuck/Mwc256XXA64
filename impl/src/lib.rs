@@ -5,7 +5,7 @@
 //!
 //! * `Mwc256XXA64` : A Lag-3 64bit MWC generator with two xors and an addition applied to the output.
 //!    It has an output size of 64bits, and a state size of 256bits. This algorithm is fastest on 64 bit architectures.
-//! * `Mwc256XXA64` : A Lag-3 32bit MWC generator with two xors and an addition applied to the output.
+//! * `Mwc128XXA32` : A Lag-3 32bit MWC generator with two xors and an addition applied to the output.
 //!    It has an output size of 32bits, and a state size of 128bits. This algorithm is fastest on 32 bit architectures.
 //!
 //!
@@ -13,7 +13,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! pcg-mwq = "0.2.1"
+//! pcg-mwc = "0.3.0"
 //! ```
 //! # Typename Nomenclature
 //! The name describes the algorithm.
@@ -24,20 +24,18 @@
 //! 1. Fourth is the output size in bits
 //!
 //! # How to Use
-//! The simple generators work like the other Rng's from the `rand` crate.
+//! The generators implement `rand_core` 0.10's `TryRng` (and so `Rng`) and `SeedableRng`, so they
+//! work like the other Rng's from the `rand` crate.
 //! You can create a prng as follows
 //!
 //! ```ignore
-//! extern crate pcg_mwc;
-//! extern crate rand;
-//!
-//! use rand::{Rng, SeedableRng};
+//! use rand::{RngExt, SeedableRng};
 //! use pcg_mwc::Mwc256XXA64;
 //!
 //! fn main() {
-//!     let mut rand = Mwc256XXA64::from_entropy();
+//!     let mut rand = Mwc256XXA64::seed_from_u64(42);
 //!
-//!     let x : u32 = rand.gen();
+//!     let x : u32 = rand.random();
 //! }
 //! ```
 //!

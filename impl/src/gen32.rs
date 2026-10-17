@@ -1,4 +1,5 @@
-use rand_core::{RngCore, Error, SeedableRng, le};
+use rand_core::utils::read_words;
+use rand_core::{Infallible, SeedableRng, TryRng};
 
 #[cfg(feature = "serde1")]
 use serde::{Deserialize, Serialize};
@@ -101,8 +102,7 @@ impl SeedableRng for Mwc128XXA32 {
     type Seed = [u8; 16];
 
     fn from_seed(seed: Self::Seed) -> Self {
-        let mut seed_u32 = [0u32; 4];
-        le::read_u32_into(&seed, &mut seed_u32);
+        let seed_u32: [u32; 4] = read_words(&seed);
         // c must be < MULTIPLE and not all 1s or 0s
         let c = (seed_u32[0] & 0x3fff_fff8) | 5;
         // X3 must be non-zero and not all 1s, hence we discard 2 bits
@@ -111,20 +111,22 @@ impl SeedableRng for Mwc128XXA32 {
     }
 }
 
-impl RngCore for Mwc128XXA32 {
+impl TryRng for Mwc128XXA32 {
+    type Error = Infallible;
+
     #[inline]
-    fn next_u32(&mut self) -> u32 {
-        self.step() as u32
+    fn try_next_u32(&mut self) -> Result<u32, Infallible> {
+        Ok(self.step())
     }
 
     #[inline]
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> Result<u64, Infallible> {
         let result = self.step() as u64;
-        return (result << 32) | (self.step() as u64);
+        Ok((result << 32) | (self.step() as u64))
     }
 
     #[inline]
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Infallible> {
         let mut dest_chunks = dest.chunks_exact_mut(6 * 4);
         for mut dest_chunk in &mut dest_chunks {
             for &num in self.gen6().iter() {
@@ -136,11 +138,6 @@ impl RngCore for Mwc128XXA32 {
         for dest_chunk in dest_chunks.into_remainder().chunks_mut(4) {
             dest_chunk.copy_from_slice(&self.step().to_le_bytes()[..dest_chunk.len()]);
         }
-    }
-
-    #[inline(always)]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.fill_bytes(dest);
         Ok(())
     }
 }
